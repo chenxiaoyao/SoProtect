@@ -3,9 +3,11 @@ include $(CLEAR_VARS)
 
 
 LOCAL_SRC_FILES:= \
-    dlfcn.cpp \
+    gdlfcn.cpp \
     linker.cpp \
-    linker_phdr.cpp
+    linker_phdr.cpp \
+	Shell.cpp \
+	Utils.cpp
 
 LOCAL_LDFLAGS := -shared -Wl,--exclude-libs,ALL
 
@@ -27,9 +29,7 @@ ifeq ($(TARGET_ARCH),mips)
     LOCAL_CFLAGS += -DANDROID_MIPS_LINKER
 endif
 
-LOCAL_MODULE:= gloader
-
-LOCAL_STATIC_LIBRARIES := libc_nomalloc
+LOCAL_MODULE:= gshell
 
 TARGET_PLATFORM := android-3
 LOCAL_LDLIBS    := -llog -Wl,-init=init

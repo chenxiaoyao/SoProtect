@@ -86,8 +86,8 @@
                                       MAYBE_MAP_FLAG((x), PF_R, PROT_READ) | \
                                       MAYBE_MAP_FLAG((x), PF_W, PROT_WRITE))
 
-ElfReader::ElfReader(const char* name, int fd)
-    : name_(name), fd_(fd),
+ElfReader::ElfReader(const char* name, int fd, Elf_Off offset)
+    : name_(name), fd_(fd), offset_(offset),
       phdr_num_(0), phdr_mmap_(NULL), phdr_table_(NULL), phdr_size_(0),
       load_start_(NULL), load_size_(0), load_bias_(0),
       loaded_phdr_(NULL) {
@@ -112,7 +112,8 @@ bool ElfReader::Load() {
 }
 
 bool ElfReader::ReadElfHeader() {
-  ssize_t rc = TEMP_FAILURE_RETRY(read(fd_, &header_, sizeof(header_)));
+  lseek(fd_, offset_, SEEK_SET);
+  ssize_t rc = read(fd_, &header_, sizeof(header_));
   if (rc < 0) {
     DL_ERR("can't read file \"%s\": %s", name_, strerror(errno));
     return false;
@@ -180,9 +181,9 @@ bool ElfReader::ReadProgramHeader() {
     return false;
   }
 
-  Elf32_Addr page_min = PAGE_START(header_.e_phoff);
-  Elf32_Addr page_max = PAGE_END(header_.e_phoff + (phdr_num_ * sizeof(Elf32_Phdr)));
-  Elf32_Addr page_offset = PAGE_OFFSET(header_.e_phoff);
+  Elf32_Addr page_min = PAGE_START(offset_ + header_.e_phoff);
+  Elf32_Addr page_max = PAGE_END(offset_ + header_.e_phoff + (phdr_num_ * sizeof(Elf32_Phdr)));
+  Elf32_Addr page_offset = PAGE_OFFSET(offset_ + header_.e_phoff);
 
   phdr_size_ = page_max - page_min;
 
@@ -294,7 +295,7 @@ bool ElfReader::LoadSegments() {
     Elf32_Addr seg_file_end   = seg_start + phdr->p_filesz;
 
     // File offsets.
-    Elf32_Addr file_start = phdr->p_offset;
+    Elf32_Addr file_start = offset_ + phdr->p_offset;
     Elf32_Addr file_end   = file_start + phdr->p_filesz;
 
     Elf32_Addr file_page_start = PAGE_START(file_start);

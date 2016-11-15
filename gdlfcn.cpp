@@ -1,6 +1,6 @@
 #include "linker.h"
+#include "gdlfcn.h"
 
-#include <dlfcn.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,12 +10,12 @@ static void __bionic_format_dlerror(const char* msg, const char* detail) {
     __android_log_print(ANDROID_LOG_ERROR, "dlfcn", msg, "");
 }
 
-const char* dlerror() {
+const char* gdlerror() {
   return 0;
 }
 
-void* dlopen(const char* filename, int flags) {
-  soinfo* result = do_dlopen(filename, flags);
+void* gdlopen(const char* filename, int flags, unsigned long offset) {
+  soinfo* result = do_dlopen(filename, flags, offset);
   if (result == NULL) {
     __bionic_format_dlerror("dlopen failed", linker_get_error_buffer());
     return NULL;
@@ -23,7 +23,7 @@ void* dlopen(const char* filename, int flags) {
   return result;
 }
 
-void* dlsym(void* handle, const char* symbol) {
+void* gdlsym(void* handle, const char* symbol) {
   if (handle == NULL) {
     __bionic_format_dlerror("dlsym library handle is null", NULL);
     return NULL;
@@ -66,7 +66,7 @@ void* dlsym(void* handle, const char* symbol) {
   }
 }
 
-int dladdr(const void* addr, Dl_info* info) {
+int gdladdr(const void* addr, Dl_info* info) {
   // Determine if this address can be found in any library currently mapped.
   soinfo* si = find_containing_library(addr);
   if (si == NULL) {
@@ -89,7 +89,7 @@ int dladdr(const void* addr, Dl_info* info) {
   return 1;
 }
 
-int dlclose(void* handle) {
+int gdlclose(void* handle) {
   return do_dlclose(reinterpret_cast<soinfo*>(handle));
 }
 
@@ -123,11 +123,11 @@ static Elf32_Sym gLibDlSymtab[] = {
   // supposed to have st_name == 0, but instead, it points to an index
   // in the strtab with a \0 to make iterating through the symtab easier.
   ELF32_SYM_INITIALIZER(sizeof(ANDROID_LIBDL_STRTAB) - 1, NULL, 0),
-  ELF32_SYM_INITIALIZER( 0, &dlopen, 1),
-  ELF32_SYM_INITIALIZER( 7, &dlclose, 1),
-  ELF32_SYM_INITIALIZER(15, &dlsym, 1),
-  ELF32_SYM_INITIALIZER(21, &dlerror, 1),
-  ELF32_SYM_INITIALIZER(29, &dladdr, 1),
+  ELF32_SYM_INITIALIZER( 0, &gdlopen, 1),
+  ELF32_SYM_INITIALIZER( 7, &gdlclose, 1),
+  ELF32_SYM_INITIALIZER(15, &gdlsym, 1),
+  ELF32_SYM_INITIALIZER(21, &gdlerror, 1),
+  ELF32_SYM_INITIALIZER(29, &gdladdr, 1),
 #if defined(ANDROID_ARM_LINKER)
   ELF32_SYM_INITIALIZER(36, &dl_unwind_find_exidx, 1),
 #elif defined(ANDROID_X86_LINKER) || defined(ANDROID_MIPS_LINKER)

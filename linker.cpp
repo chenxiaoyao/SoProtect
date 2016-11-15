@@ -533,7 +533,7 @@ static int open_library_on_path(const char* name, const char* const paths[]) {
       DEBUG("Warning: ignoring very long library path: %s/%s", paths[i], name);
       continue;
     }
-    int fd = TEMP_FAILURE_RETRY(open(buf, O_RDONLY | O_CLOEXEC));
+    int fd = open(buf, O_RDONLY | O_CLOEXEC);
     if (fd != -1) {
       return fd;
     }
@@ -546,7 +546,7 @@ static int open_library(const char* name) {
 
   // If the name contains a slash, we should attempt to open it directly and not search the paths.
   if (strchr(name, '/') != NULL) {
-    int fd = TEMP_FAILURE_RETRY(open(name, O_RDONLY | O_CLOEXEC));
+    int fd = open(name, O_RDONLY | O_CLOEXEC);
     if (fd != -1) {
       return fd;
     }
@@ -561,7 +561,7 @@ static int open_library(const char* name) {
   return fd;
 }
 
-static soinfo* load_library(const char* name) {
+static soinfo* load_library(const char* name, Elf_Off offset) {
     // Open the file.
     int fd = open_library(name);
     if (fd == -1) {
@@ -570,7 +570,7 @@ static soinfo* load_library(const char* name) {
     }
 
     // Read the ELF header and load the segments.
-    ElfReader elf_reader(name, fd);
+    ElfReader elf_reader(name, fd, offset);
     if (!elf_reader.Load()) {
         return NULL;
     }
@@ -610,7 +610,7 @@ static soinfo *find_loaded_library(const char *name)
     return NULL;
 }
 
-static soinfo* find_library_internal(const char* name) {
+static soinfo* find_library_internal(const char* name, Elf_Off offset) {
   if (name == NULL) {
     return somain;
   }
@@ -625,7 +625,7 @@ static soinfo* find_library_internal(const char* name) {
   }
 
   TRACE("[ '%s' has not been loaded yet.  Locating...]", name);
-  si = load_library(name);
+  si = load_library(name, offset);
   if (si == NULL) {
     return NULL;
   }
@@ -644,8 +644,8 @@ static soinfo* find_library_internal(const char* name) {
   return si;
 }
 
-static soinfo* find_library(const char* name) {
-  soinfo* si = find_library_internal(name);
+static soinfo* find_library(const char* name, Elf_Off offset) {
+  soinfo* si = find_library_internal(name, offset);
   if (si != NULL) {
     si->ref_count++;
   }
@@ -675,13 +675,13 @@ static int soinfo_unload(soinfo* si) {
   return 0;
 }
 
-soinfo* do_dlopen(const char* name, int flags) {
+soinfo* do_dlopen(const char* name, int flags, Elf_Off offset) {
   if ((flags & ~(RTLD_NOW|RTLD_LAZY|RTLD_LOCAL|RTLD_GLOBAL)) != 0) {
     DL_ERR("invalid flags to dlopen: %x", flags);
     return NULL;
   }
   set_soinfo_pool_protection(PROT_READ | PROT_WRITE);
-  soinfo* si = find_library(name);
+  soinfo* si = find_library(name, offset);
   if (si != NULL) {
     si->CallConstructors();
   }
@@ -1247,7 +1247,7 @@ static bool soinfo_link_image(soinfo* si) {
         memset(gLdPreloads, 0, sizeof(gLdPreloads));
         size_t preload_count = 0;
         for (size_t i = 0; gLdPreloadNames[i] != NULL; i++) {
-            soinfo* lsi = find_library(gLdPreloadNames[i]);
+            soinfo* lsi = find_library(gLdPreloadNames[i], 0);
             if (lsi != NULL) {
                 gLdPreloads[preload_count++] = lsi;
             } else {
@@ -1265,7 +1265,7 @@ static bool soinfo_link_image(soinfo* si) {
         if (d->d_tag == DT_NEEDED) {
             const char* library_name = si->strtab + d->d_un.d_val;
             DEBUG("%s needs %s", si->name, library_name);
-            soinfo* lsi = find_library(library_name);
+            soinfo* lsi = find_library(library_name, 0);
             if (lsi == NULL) {
                 strlcpy(tmp_err_buf, linker_get_error_buffer(), sizeof(tmp_err_buf));
                 DL_ERR("could not load library \"%s\" needed by \"%s\"; caused by %s",

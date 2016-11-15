@@ -12,7 +12,7 @@
 
 class ElfReader {
  public:
-  ElfReader(const char* name, int fd);
+  ElfReader(const char* name, int fd, Elf_Off offset);
   ~ElfReader();
 
   bool Load();
@@ -34,6 +34,7 @@ class ElfReader {
 
   const char* name_;
   int fd_;
+  Elf_Off offset_;
 
   Elf32_Ehdr header_;
   size_t phdr_num_;

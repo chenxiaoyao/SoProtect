@@ -1,3 +1,6 @@
+#ifndef _ELF_DEFINES_H_
+#define _ELF_DEFINES_H_
+
 #define STB_GLOBAL      1
 #define ELF32_ST_BIND(x)    ((x) >> 4)
 
@@ -249,3 +252,4 @@
 #define ET_CORE		4	/* Core file */
 #define ET_NUM		5
 
+#endif

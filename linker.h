@@ -4,15 +4,15 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <elf.h>
-#include <android/log.h>
 
 #include <link.h>
 
 #include "elf_defines.h"
+#include "Log.h"
 
-#define TRACE(...) __android_log_print(ANDROID_LOG_INFO, "linker", __VA_ARGS__)
-#define DEBUG(...) __android_log_print(ANDROID_LOG_DEBUG, "linker", __VA_ARGS__)
-#define DL_ERR(...) __android_log_print(ANDROID_LOG_ERROR, "linker", __VA_ARGS__)
+#define TRACE(...) GLogInfo("linker", __VA_ARGS__)
+#define DEBUG(...) GLogInfo("linker", __VA_ARGS__)
+#define DL_ERR(...) GLogError("linker", __VA_ARGS__)
 
 // Returns the address of the page containing address 'x'.
 #define PAGE_START(x)  ((x) & PAGE_MASK)
@@ -130,7 +130,7 @@ extern soinfo libdl_info;
 #endif
 
 void do_android_update_LD_LIBRARY_PATH(const char* ld_library_path);
-soinfo* do_dlopen(const char* name, int flags);
+soinfo* do_dlopen(const char* name, int flags, Elf_Off offset);
 int do_dlclose(soinfo* si);
 
 Elf32_Sym* dlsym_linear_lookup(const char* name, soinfo** found, soinfo* start);
