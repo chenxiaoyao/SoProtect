@@ -15,7 +15,7 @@ extern "C" void init() {
     Shell *shell = new Shell();
     shell->loadClientLibrary();
     shell->syncSoInfo();
-    //delete shell;
+    delete shell;
 }
 
 Shell::Shell() {
