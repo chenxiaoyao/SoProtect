@@ -19,8 +19,8 @@ void init() {
 }
 
 void fini() {
-    GLogInfo("Shell", "So shell library finalize....");
     if (gshell != NULL) {
+        GLogInfo("Shell", "So shell library finalize....");
         gshell->restoreSoInfo();
         delete gshell;
         gshell = NULL;

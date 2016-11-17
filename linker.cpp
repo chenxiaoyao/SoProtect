@@ -661,7 +661,10 @@ static int soinfo_unload(soinfo* si) {
       if (d->d_tag == DT_NEEDED) {
         const char* library_name = si->strtab + d->d_un.d_val;
         TRACE("%s needs to unload %s", si->name, library_name);
-        soinfo_unload(find_loaded_library(library_name));
+        soinfo *dependencySi = reinterpret_cast<soinfo *>(dlopen(library_name, RTLD_LAZY));
+        // here we need close soinfo twice to unload the dependent so library.
+        dlclose(dependencySi);
+        dlclose(dependencySi);
       }
     }
 
@@ -1006,7 +1009,9 @@ void soinfo::CallConstructors() {
       if (d->d_tag == DT_NEEDED) {
         const char* library_name = strtab + d->d_un.d_val;
         TRACE("\"%s\": calling constructors in DT_NEEDED \"%s\"", name, library_name);
-        reinterpret_cast<soinfo *>(dlopen(library_name, RTLD_LAZY))->CallConstructors();
+        soinfo *dependencySi = reinterpret_cast<soinfo *>(dlopen(library_name, RTLD_LAZY));// soinfo ref_count++
+        dependencySi->CallConstructors();
+        dlclose(dependencySi);// soinfo ref_count--
       }
     }
   }
