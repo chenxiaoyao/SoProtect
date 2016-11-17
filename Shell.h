@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-/*__attribute__((constructor)) */void init();
+void init();
 
 #ifdef __cplusplus
 }
@@ -23,6 +23,8 @@ private:
     soinfo backupShellSoInfo;
     soinfo *shellSoInfo;
     soinfo *clientSoInfo;
+
+    void setSoInfoProtection(void *addr, int protection);
 
 public:
     Shell();

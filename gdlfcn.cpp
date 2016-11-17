@@ -1,13 +1,13 @@
 #include "linker.h"
 #include "gdlfcn.h"
+#include "Log.h"
 
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <android/log.h>
 
 static void __bionic_format_dlerror(const char* msg, const char* detail) {
-    __android_log_print(ANDROID_LOG_ERROR, "dlfcn", msg, "");
+    GLogError("gdlfcn", "Message: %s, Detail: %s", msg, detail);
 }
 
 const char* gdlerror() {
@@ -17,7 +17,7 @@ const char* gdlerror() {
 void* gdlopen(const char* filename, int flags, unsigned long offset) {
   soinfo* result = do_dlopen(filename, flags, offset);
   if (result == NULL) {
-    __bionic_format_dlerror("dlopen failed", linker_get_error_buffer());
+    __bionic_format_dlerror("gdlopen failed", linker_get_error_buffer());
     return NULL;
   }
   return result;
@@ -25,11 +25,11 @@ void* gdlopen(const char* filename, int flags, unsigned long offset) {
 
 void* gdlsym(void* handle, const char* symbol) {
   if (handle == NULL) {
-    __bionic_format_dlerror("dlsym library handle is null", NULL);
+    __bionic_format_dlerror("gdlsym library handle is null", NULL);
     return NULL;
   }
   if (symbol == NULL) {
-    __bionic_format_dlerror("dlsym symbol name is null", NULL);
+    __bionic_format_dlerror("gdlsym symbol name is null", NULL);
     return NULL;
   }
 

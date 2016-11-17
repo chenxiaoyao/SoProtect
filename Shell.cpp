@@ -1,5 +1,6 @@
 #include <elf.h>
 #include <dlfcn.h>
+#include <sys/mman.h>
 
 #include "gdlfcn.h"
 #include "Shell.h"
@@ -14,7 +15,7 @@ extern "C" void init() {
     Shell *shell = new Shell();
     shell->loadClientLibrary();
     shell->syncSoInfo();
-    delete shell;
+    //delete shell;
 }
 
 Shell::Shell() {
@@ -53,28 +54,25 @@ void Shell::loadClientLibrary() {
     GLogInfo("Shell", "Finish to load client library...");
 }
 
+void Shell::setSoInfoProtection(void *addr, int protection) {
+    if (mprotect(addr, PAGE_SIZE, protection) == -1) {
+      abort(); // Can't happen.
+    }
+}
+
 void Shell::syncSoInfo() {
-    GLogInfo("Shell", "Start to sync so info....");
-    strcpy(this->shellSoInfo->name, this->clientSoInfo->name);
-    this->shellSoInfo->phdr = this->clientSoInfo->phdr;
-    this->shellSoInfo->phnum = this->clientSoInfo->phnum;
-    this->shellSoInfo->entry = this->clientSoInfo->entry;
+    void *siPageStart = (void *) PAGE_START((Elf_Addr) this->shellSoInfo);
+    this->setSoInfoProtection(siPageStart, PROT_READ | PROT_WRITE);
+
+    this->shellSoInfo->load_bias = this->clientSoInfo->load_bias;
     this->shellSoInfo->base = this->clientSoInfo->base;
     this->shellSoInfo->size = this->clientSoInfo->size;
-    this->shellSoInfo->dynamic = this->clientSoInfo->dynamic;
     this->shellSoInfo->strtab = this->clientSoInfo->strtab;
     this->shellSoInfo->symtab = this->clientSoInfo->symtab;
     this->shellSoInfo->nbucket = this->clientSoInfo->nbucket;
     this->shellSoInfo->nchain = this->clientSoInfo->nchain;
     this->shellSoInfo->bucket = this->clientSoInfo->bucket;
     this->shellSoInfo->chain = this->clientSoInfo->chain;
-    this->shellSoInfo->plt_got = this->clientSoInfo->plt_got;
-    this->shellSoInfo->plt_rel = this->clientSoInfo->plt_rel;
-    this->shellSoInfo->plt_rel_count = this->clientSoInfo->plt_rel_count;
-    this->shellSoInfo->rel = this->clientSoInfo->rel;
-    this->shellSoInfo->rel_count = this->clientSoInfo->rel_count;
-    this->shellSoInfo->preinit_array = this->clientSoInfo->preinit_array;
-    this->shellSoInfo->preinit_array_count = this->clientSoInfo->preinit_array_count;
     this->shellSoInfo->init_array = this->clientSoInfo->init_array;
     this->shellSoInfo->init_array_count = this->clientSoInfo->init_array_count;
     this->shellSoInfo->fini_array = this->clientSoInfo->fini_array;
@@ -85,8 +83,9 @@ void Shell::syncSoInfo() {
     this->shellSoInfo->ARM_exidx = this->clientSoInfo->ARM_exidx;
     this->shellSoInfo->ARM_exidx_count = this->clientSoInfo->ARM_exidx_count;
 #endif
-    this->shellSoInfo->ref_count = this->clientSoInfo->ref_count;
     this->shellSoInfo->load_bias = this->clientSoInfo->load_bias;
+
+    this->setSoInfoProtection(siPageStart, PROT_READ);
 }
 
 Shell::~Shell() {

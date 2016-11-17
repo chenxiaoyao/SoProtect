@@ -1006,7 +1006,7 @@ void soinfo::CallConstructors() {
       if (d->d_tag == DT_NEEDED) {
         const char* library_name = strtab + d->d_un.d_val;
         TRACE("\"%s\": calling constructors in DT_NEEDED \"%s\"", name, library_name);
-        find_loaded_library(library_name)->CallConstructors();
+        reinterpret_cast<soinfo *>(dlopen(library_name, RTLD_LAZY))->CallConstructors();
       }
     }
   }
@@ -1265,7 +1265,7 @@ static bool soinfo_link_image(soinfo* si) {
         if (d->d_tag == DT_NEEDED) {
             const char* library_name = si->strtab + d->d_un.d_val;
             DEBUG("%s needs %s", si->name, library_name);
-            soinfo* lsi = find_library(library_name, 0);
+            soinfo* lsi = reinterpret_cast<soinfo *>(dlopen(library_name, 0));
             if (lsi == NULL) {
                 strlcpy(tmp_err_buf, linker_get_error_buffer(), sizeof(tmp_err_buf));
                 DL_ERR("could not load library \"%s\" needed by \"%s\"; caused by %s",
@@ -1292,6 +1292,7 @@ static bool soinfo_link_image(soinfo* si) {
         }
     }
 
+    somain = si;
     if (si->plt_rel != NULL) {
         DEBUG("[ relocating %s plt ]", si->name );
         if (soinfo_relocate(si, si->plt_rel, si->plt_rel_count, needed)) {
