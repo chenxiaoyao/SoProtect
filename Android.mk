@@ -32,7 +32,7 @@ endif
 LOCAL_MODULE:= gshell
 
 TARGET_PLATFORM := android-3
-LOCAL_LDLIBS    := -llog -Wl,-init=init
+LOCAL_LDLIBS    := -llog
 APP_PLATFORM    := android-19
 
 include $(BUILD_SHARED_LIBRARY)

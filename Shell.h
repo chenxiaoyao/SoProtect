@@ -11,7 +11,8 @@
 extern "C" {
 #endif
 
-void init();
+__attribute__((constructor)) void init();
+__attribute__((destructor)) void fini();
 
 #ifdef __cplusplus
 }
@@ -30,7 +31,8 @@ public:
     Shell();
     ~Shell();
     void loadClientLibrary();
-    void syncSoInfo();
+    void updateSoInfo();
+    void restoreSoInfo();
 };
 
 #endif

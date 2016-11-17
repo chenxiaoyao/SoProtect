@@ -10,12 +10,21 @@
 
 #define MAX_COUNT 64
 
-extern "C" void init() {
+static Shell *gshell = NULL;
+void init() {
     GLogInfo("Shell", "So shell library init....");
-    Shell *shell = new Shell();
-    shell->loadClientLibrary();
-    shell->syncSoInfo();
-    delete shell;
+    gshell = new Shell();
+    gshell->loadClientLibrary();
+    gshell->updateSoInfo();
+}
+
+void fini() {
+    GLogInfo("Shell", "So shell library finalize....");
+    if (gshell != NULL) {
+        gshell->restoreSoInfo();
+        delete gshell;
+        gshell = NULL;
+    }
 }
 
 Shell::Shell() {
@@ -26,6 +35,7 @@ Shell::Shell() {
     ret = loadMemoryMap(getpid(), map, &count);
     if (ret < 0) {
         GLogError("Shell", "Load process memory map failed. ");
+        abort();
         return;
     }
     char *libName = NULL;
@@ -38,11 +48,11 @@ Shell::Shell() {
     }
     if (libName == NULL) {
         GLogError("Shell", "Find current shell library failed. ");
+        abort();
         return;
     }
     strncpy(this->libraryName, libName, sizeof(this->libraryName));
     this->shellSoInfo = reinterpret_cast<soinfo *>(dlopen(libName, RTLD_LAZY));
-    this->backupShellSoInfo = *shellSoInfo;
 }
 
 void Shell::loadClientLibrary() {
@@ -55,39 +65,52 @@ void Shell::loadClientLibrary() {
 }
 
 void Shell::setSoInfoProtection(void *addr, int protection) {
-    if (mprotect(addr, PAGE_SIZE, protection) == -1) {
+    void *pageStart = (void *) PAGE_START((Elf_Addr) addr);
+    if (mprotect(pageStart, PAGE_SIZE, protection) == -1) {
       abort(); // Can't happen.
     }
 }
 
-void Shell::syncSoInfo() {
-    void *siPageStart = (void *) PAGE_START((Elf_Addr) this->shellSoInfo);
-    this->setSoInfoProtection(siPageStart, PROT_READ | PROT_WRITE);
-
-    this->shellSoInfo->load_bias = this->clientSoInfo->load_bias;
-    this->shellSoInfo->base = this->clientSoInfo->base;
-    this->shellSoInfo->size = this->clientSoInfo->size;
-    this->shellSoInfo->strtab = this->clientSoInfo->strtab;
-    this->shellSoInfo->symtab = this->clientSoInfo->symtab;
-    this->shellSoInfo->nbucket = this->clientSoInfo->nbucket;
-    this->shellSoInfo->nchain = this->clientSoInfo->nchain;
-    this->shellSoInfo->bucket = this->clientSoInfo->bucket;
-    this->shellSoInfo->chain = this->clientSoInfo->chain;
-    this->shellSoInfo->init_array = this->clientSoInfo->init_array;
-    this->shellSoInfo->init_array_count = this->clientSoInfo->init_array_count;
-    this->shellSoInfo->fini_array = this->clientSoInfo->fini_array;
-    this->shellSoInfo->fini_array_count = this->clientSoInfo->fini_array_count;
-    this->shellSoInfo->init_func = this->clientSoInfo->init_func;
-    this->shellSoInfo->fini_func = this->clientSoInfo->fini_func;
+static void copyImportantSoInfo(soinfo *dest, soinfo *src) {
+    dest->load_bias = src->load_bias;
+    dest->base = src->base;
+    dest->size = src->size;
+    dest->strtab = src->strtab;
+    dest->symtab = src->symtab;
+    dest->nbucket = src->nbucket;
+    dest->nchain = src->nchain;
+    dest->bucket = src->bucket;
+    dest->chain = src->chain;
 #ifdef ANDROID_ARM_LINKER
-    this->shellSoInfo->ARM_exidx = this->clientSoInfo->ARM_exidx;
-    this->shellSoInfo->ARM_exidx_count = this->clientSoInfo->ARM_exidx_count;
+    dest->ARM_exidx = src->ARM_exidx;
+    dest->ARM_exidx_count = src->ARM_exidx_count;
 #endif
-    this->shellSoInfo->load_bias = this->clientSoInfo->load_bias;
+}
 
-    this->setSoInfoProtection(siPageStart, PROT_READ);
+void Shell::updateSoInfo() {
+    this->backupShellSoInfo = *shellSoInfo;
+
+    this->setSoInfoProtection(this->shellSoInfo, PROT_READ | PROT_WRITE);
+    copyImportantSoInfo(this->shellSoInfo, this->clientSoInfo);
+    // restore soinfo reference count
+    if (this->shellSoInfo->ref_count > 1) {
+        this->shellSoInfo->ref_count--;
+    }
+
+    this->setSoInfoProtection(this->shellSoInfo, PROT_READ);
+}
+
+void Shell::restoreSoInfo() {
+    if (this->shellSoInfo == NULL || this->clientSoInfo == NULL) {
+        return;
+    }
+    this->setSoInfoProtection(this->shellSoInfo, PROT_READ | PROT_WRITE);
+    copyImportantSoInfo(this->shellSoInfo, &(this->backupShellSoInfo));
+    this->setSoInfoProtection(this->shellSoInfo, PROT_READ);
 }
 
 Shell::~Shell() {
-
+    gdlclose(this->clientSoInfo);
+    this->shellSoInfo = NULL;
+    this->clientSoInfo = NULL;
 }
