@@ -4,6 +4,13 @@
 #define STB_GLOBAL      1
 #define ELF32_ST_BIND(x)    ((x) >> 4)
 
+#define DF_ORIGIN     0x00000001
+#define DF_SYMBOLIC   0x00000002
+#define DF_TEXTREL    0x00000004
+#define DF_BIND_NOW   0x00000008
+#define DF_STATIC_TLS 0x00000010
+
+
 /* Processor specific relocation types */
 
 #define R_ARM_NONE		0
@@ -137,6 +144,10 @@
 #define DT_INIT_ARRAYSZ 27	/* Address of termination function array */
 #define DT_FINI_ARRAYSZ 28	/* Size, in bytes, of DT_FINI_ARRAY array*/
 #define DT_NUM		29
+#define DT_FLAGS 30
+/* glibc and BSD disagree for DT_ENCODING; glibc looks wrong. */
+#define DT_PREINIT_ARRAY 32
+#define DT_PREINIT_ARRAYSZ 33
 
 #define DT_LOOS		0x60000000	/* Operating system specific range */
 #define DT_VERSYM	0x6ffffff0	/* Symbol versions */

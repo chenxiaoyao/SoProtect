@@ -4,8 +4,14 @@
 #include "Utils.h"
 #include "Log.h"
 
+#define MAX_SEGMENT_INTERVAL 10 * 4096  // 10 pages
+
 int loadMemoryMap(pid_t pid, MemoryMap *map, int *count) {
+#ifdef __LP64__
+    char raw[64000];
+#else
     char raw[8000];
+#endif
     char name[MAX_NAME_LENGTH];
     char *p;
     unsigned long start, end;
@@ -24,7 +30,7 @@ int loadMemoryMap(pid_t pid, MemoryMap *map, int *count) {
     while(true) {
         returnValue = read(fd, p, sizeof(raw) - (p - raw));
         if (returnValue < 0) {
-            GLogError("Utils", "Read prcess map file failed. ");
+            GLogError("Utils", "Read process map file failed. ");
                 return -1;
         }
         if (returnValue == 0) {
@@ -41,7 +47,12 @@ int loadMemoryMap(pid_t pid, MemoryMap *map, int *count) {
     p = strtok(raw, "\n");
     m = map;
     while (p) {
+        GLogInfo("Utils", "-------maps: %s, current count: %d", p, itemCount);
+#ifdef __LP64__
+        returnValue = sscanf(p, "%012lx-%012lx %*s %*s %*s %*s %s\n", &start, &end, name);
+#else
         returnValue = sscanf(p, "%08lx-%08lx %*s %*s %*s %*s %s\n", &start, &end, name);
+#endif
         p = strtok(NULL, "\n");
         if (returnValue == 2) {
             m = map + itemCount++;
@@ -60,6 +71,15 @@ int loadMemoryMap(pid_t pid, MemoryMap *map, int *count) {
         }
 
         if (i >= 0) {
+#ifdef __LP64__
+            // if the interval between two segments map of the same loadable module is too large,
+            // we ignore the first segment map
+            if (start - m->start > MAX_SEGMENT_INTERVAL) {
+                m->start = start;
+                m->end = end;
+                continue;
+            }
+#endif
             if (start < m->start) {
                 m->start = start;
             }

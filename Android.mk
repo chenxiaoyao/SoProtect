@@ -5,33 +5,33 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES:= \
     gdlfcn.cpp \
     linker.cpp \
+    linker_allocator.cpp \
     linker_phdr.cpp \
 	Shell.cpp \
+	Log.cpp \
 	Utils.cpp
 
-LOCAL_LDFLAGS := -shared -Wl,--exclude-libs,ALL
+LOCAL_LDFLAGS := \
+    -shared \
+    -Wl,-Bsymbolic \
+    -Wl,--exclude-libs,ALL \
 
-LOCAL_CFLAGS += -fno-stack-protector \
-        -Wstrict-overflow=5 \
-        -fvisibility=hidden \
-        -Wall -Wextra
+LOCAL_CFLAGS += \
+    -fno-stack-protector \
+    -Wstrict-overflow=5 \
+    -fvisibility=hidden \
+    -Wall -Wextra -Wunused
 
+LOCAL_CONLYFLAGS += \
+    -std=gnu99 \
 
-ifeq ($(TARGET_ARCH),arm)
-    LOCAL_CFLAGS += -DANDROID_ARM_LINKER
-endif
+LOCAL_CPPFLAGS += \
+    -std=gnu++11 \
 
-ifeq ($(TARGET_ARCH),x86)
-    LOCAL_CFLAGS += -DANDROID_X86_LINKER
-endif
-
-ifeq ($(TARGET_ARCH),mips)
-    LOCAL_CFLAGS += -DANDROID_MIPS_LINKER
-endif
 
 LOCAL_MODULE:= gshell
 
-TARGET_PLATFORM := android-3
+TARGET_PLATFORM := android-16
 LOCAL_LDLIBS    := -llog
 APP_PLATFORM    := android-19
 

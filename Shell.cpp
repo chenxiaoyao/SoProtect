@@ -1,5 +1,4 @@
 #include <elf.h>
-#include <dlfcn.h>
 #include <sys/mman.h>
 
 #include "gdlfcn.h"
@@ -8,7 +7,11 @@
 #include "Log.h"
 #include "linker.h"
 
-#define MAX_COUNT 64
+#ifdef __LP64__
+#define MAX_COUNT 512
+#else
+#define MAX_COUNT 128
+#endif
 
 static Shell *gshell = NULL;
 void init() {
@@ -40,32 +43,36 @@ Shell::Shell() {
     }
     char *libName = NULL;
     unsigned long initAddr = reinterpret_cast<unsigned long>(init);
+    TRACE("----------init func addr: %lx, unsigned long length: %d", initAddr, sizeof(unsigned long));
     for (int i = 0; i < count; i++) {
+        TRACE("-------map start: %lx, end: %lx, name: %s", map[i].start, map[i].end, map[i].name);
         if (initAddr >= map[i].start && initAddr < map[i].end) {
             libName = map[i].name;
+            TRACE("-------find: %s, addr: %lx, between %lx and %lx", map[i].name, initAddr, map[i].start, map[i].end);
             break;
         }
     }
     if (libName == NULL) {
-        GLogError("Shell", "Find current shell library failed. ");
+        GLogError("Shell", "Find current library name failed. ");
         abort();
         return;
     }
     strncpy(this->libraryName, libName, sizeof(this->libraryName));
     this->shellSoInfo = reinterpret_cast<soinfo *>(dlopen(libName, RTLD_LAZY));
+    TRACE("--------libName: %s, base addr: %lx", libName, this->shellSoInfo);
 }
 
 void Shell::loadClientLibrary() {
     GLogInfo("Shell", "Start to load client library...");
-    Elf_Ehdr *ehdr = reinterpret_cast<Elf_Ehdr *>(shellSoInfo->base);
-    Elf_Off clientLibOffset = ~ehdr->e_shoff;
+    ElfW(Ehdr) *ehdr = reinterpret_cast<ElfW(Ehdr) *>(shellSoInfo->base);
+    ElfW(Off) clientLibOffset = ~ehdr->e_shoff;
     GLogInfo("Shell", "Client so offset: %x", clientLibOffset);
     this->clientSoInfo = reinterpret_cast<soinfo *>(gdlopen(this->libraryName, RTLD_LAZY, clientLibOffset));
     GLogInfo("Shell", "Finish to load client library...");
 }
 
 void Shell::setSoInfoProtection(void *addr, int protection) {
-    void *pageStart = (void *) PAGE_START((Elf_Addr) addr);
+    void *pageStart = (void *) PAGE_START((ElfW(Addr)) addr);
     if (mprotect(pageStart, PAGE_SIZE, protection) == -1) {
       abort(); // Can't happen.
     }
@@ -88,7 +95,7 @@ static void copyImportantSoInfo(soinfo *dest, soinfo *src) {
 }
 
 void Shell::updateSoInfo() {
-    this->backupShellSoInfo = *shellSoInfo;
+    memcpy(&(this->backupShellSoInfo), shellSoInfo, sizeof(soinfo));
 
     this->setSoInfoProtection(this->shellSoInfo, PROT_READ | PROT_WRITE);
     copyImportantSoInfo(this->shellSoInfo, this->clientSoInfo);

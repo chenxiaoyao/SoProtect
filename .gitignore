@@ -31,3 +31,7 @@
 tags
 obj/
 *.d
+libs/
+gen/
+bin/
+out/

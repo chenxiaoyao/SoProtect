@@ -54,6 +54,7 @@
   
 ## Customizable Section: adapt those variables to suit your program.  
 ##==========================================================================  
+BITS = 64
   
 # The pre-processor and compiler options.  
 MY_CFLAGS =  
@@ -77,6 +78,12 @@ PROGRAM   =  ggenerator
   
 ## Implicit Section: change the following only when necessary.  
 ##==========================================================================  
+
+ifeq ($(BITS), 64)
+  CFLAGS += -m64
+else
+  CFLAGS += -m32
+endif
   
 # The source file types (headers excluded).  
 # .c indicates C source files, and others C++ ones.  

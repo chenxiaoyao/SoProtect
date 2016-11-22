@@ -28,6 +28,7 @@ private:
     char clientSoPath[MAX_PATH_LENGTH];
     char shellSoPath[MAX_PATH_LENGTH];
     int copyFileContent(int destFd, int srcFd);
+    void checkElfClass(const char *soPath, int fd);
 public:
     Generator(const char *clientSo, const char *shellSo);
     void generate();
